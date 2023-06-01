@@ -15,10 +15,10 @@ private:
     QWheelEvent* lastWheelEvent;
 
     int stepsTotal;
-    QList<QPair<double, int>> stepsLeftQueue;
+    QList<QPair<QPoint, int>> stepsLeftQueue;
 
 private:
-    double subDelta(double delta, int stepsLeft);
+    QPointF subDelta(QPoint delta, int stepsLeft) const;
 
 private slots:
     void slotSmoothMove();
