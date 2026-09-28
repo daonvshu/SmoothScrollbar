@@ -9,13 +9,38 @@
 #include <QElapsedTimer>
 #include <QPointer>
 #include <QScrollBar>
+#include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
 
-namespace smoothscroll {
+#include <algorithm>
+#include <cmath>
+
+namespace sscroll {
+
+namespace {
+constexpr int wheelIdleIntervalMs = 90;
+constexpr int maximumWheelSampleGapMs = 180;
+constexpr int minimumWheelSampleIntervalMs = 16;
+constexpr qreal minimumMomentumSpeed = 550.0;
+constexpr qreal maximumMomentumSpeed = 3000.0;
+constexpr qreal momentumRampSteps = 2.0;
+constexpr int maximumMomentumDurationMs = 900;
+constexpr qreal pendingMomentumMultiplier = 2.0;
+}
 
 class SmoothScrollControllerPrivate {
 public:
+    struct WheelMotion {
+        QElapsedTimer inputClock;
+        QTimer idleTimer;
+        QPointer<QScrollBar> scrollBar;
+        qreal lastDistance = 0.0;
+        qreal velocity = 0.0;
+        qreal wheelSteps = 0.0;
+        int consecutiveInputs = 0;
+    };
+
     SmoothScrollControllerPrivate(SmoothScrollController* owner,
                                   QAbstractScrollArea* area)
         : q(owner)
@@ -35,10 +60,92 @@ public:
                          owner, updateRunning);
         QObject::connect(&vertical, &ScrollAxisAnimator::runningChanged,
                          owner, updateRunning);
+
+        auto setupMomentum = [this, owner](WheelMotion& motion,
+                                           ScrollAxisAnimator& animator) {
+            motion.idleTimer.setSingleShot(true);
+            auto* motionState = &motion;
+            auto* axisAnimator = &animator;
+            QObject::connect(&motion.idleTimer, &QTimer::timeout, owner,
+                             [this, motionState, axisAnimator]() {
+                const qreal velocity = motionState->velocity;
+                const qreal wheelSteps = motionState->wheelSteps;
+                const auto scrollBar = motionState->scrollBar;
+                resetMotion(*motionState);
+                if (!enabled || !settings.wheelMomentumEnabled
+                    || settings.animationDuration == 0
+                    || !scrollBar || axisAnimator->scrollBar() != scrollBar
+                    || wheelSteps < settings.wheelMomentumMinimumSteps
+                    || std::abs(velocity) < minimumMomentumSpeed) {
+                    return;
+                }
+
+                const qreal speed = std::abs(velocity);
+                const qreal speedRatio = std::clamp(
+                    (speed - minimumMomentumSpeed)
+                        / (maximumMomentumSpeed - minimumMomentumSpeed),
+                    0.0, 1.0);
+                const qreal stepRatio = std::clamp(
+                    (wheelSteps - settings.wheelMomentumMinimumSteps + 1.0)
+                        / (momentumRampSteps + 1.0),
+                    0.0, 1.0);
+                const qreal baseDuration = std::clamp<qreal>(
+                    settings.animationDuration * 1.3, 150.0, maximumMomentumDurationMs);
+                const int duration = qRound(baseDuration
+                    + (maximumMomentumDurationMs - baseDuration) * speedRatio * stepRatio);
+                const qreal pendingLimit = settings.maximumPendingDistance > 0
+                    ? settings.maximumPendingDistance : 600.0;
+                const qreal distance = std::copysign(
+                    std::min(speed * duration / 3000.0,
+                             pendingLimit * (1.0 + speedRatio)) * stepRatio,
+                    velocity);
+                static_cast<void>(axisAnimator->scrollBy(
+                    distance, pendingMomentumMultiplier, duration));
+            });
+        };
+        setupMomentum(horizontalMotion, horizontal);
+        setupMomentum(verticalMotion, vertical);
+    }
+
+    void resetMotion(WheelMotion& motion)
+    {
+        motion.idleTimer.stop();
+        motion.inputClock.invalidate();
+        motion.scrollBar = nullptr;
+        motion.lastDistance = 0.0;
+        motion.velocity = 0.0;
+        motion.wheelSteps = 0.0;
+        motion.consecutiveInputs = 0;
+    }
+
+    void recordWheelInput(WheelMotion& motion, QScrollBar* scrollBar,
+                          qreal distance, qreal wheelSteps)
+    {
+        const qint64 elapsed = motion.inputClock.isValid()
+            ? motion.inputClock.elapsed() : 0;
+        if (scrollBar != motion.scrollBar || elapsed > maximumWheelSampleGapMs
+            || distance * motion.lastDistance <= 0.0) {
+            motion.velocity = 0.0;
+            motion.wheelSteps = 0.0;
+            motion.consecutiveInputs = 0;
+        } else {
+            const qreal instantaneous = distance * 1000.0
+                / std::max<qint64>(minimumWheelSampleIntervalMs, elapsed);
+            motion.velocity = motion.consecutiveInputs == 0
+                ? instantaneous : 0.5 * motion.velocity + 0.5 * instantaneous;
+            ++motion.consecutiveInputs;
+        }
+        motion.lastDistance = distance;
+        motion.wheelSteps += wheelSteps;
+        motion.scrollBar = scrollBar;
+        motion.inputClock.start();
+        motion.idleTimer.start(wheelIdleIntervalMs);
     }
 
     void applySettings(const SmoothScrollSettings& newSettings)
     {
+        resetMotion(horizontalMotion);
+        resetMotion(verticalMotion);
         horizontalInput.invalidate();
         verticalInput.invalidate();
         settings = newSettings.normalized();
@@ -92,9 +199,15 @@ public:
             *event, *scrollArea->horizontalScrollBar(),
             *scrollArea->verticalScrollBar(), settings);
         if (delta.shouldPreserveNativeHandling) {
+            resetMotion(horizontalMotion);
+            resetMotion(verticalMotion);
             horizontalInput.invalidate();
             verticalInput.invalidate();
             return false;
+        }
+        if (delta.usesPixelDelta) {
+            resetMotion(horizontalMotion);
+            resetMotion(verticalMotion);
         }
 
         const auto accelerated = [this, &delta](qreal distance, QElapsedTimer& timer,
@@ -119,12 +232,28 @@ public:
         if (!qFuzzyIsNull(delta.valueDelta.x())) {
             const auto input = accelerated(delta.valueDelta.x(), horizontalInput,
                                            lastHorizontalDistance);
-            handled = horizontal.scrollBy(input.first, input.second) || handled;
+            const bool moved = horizontal.scrollBy(input.first, input.second);
+            if (moved && settings.wheelMomentumEnabled && !delta.usesPixelDelta) {
+                const int angle = event->angleDelta().x() != 0
+                    ? event->angleDelta().x() : event->angleDelta().y();
+                recordWheelInput(horizontalMotion, horizontal.scrollBar(),
+                                 input.first, std::abs(angle) / 120.0);
+            } else {
+                resetMotion(horizontalMotion);
+            }
+            handled = moved || handled;
         }
         if (!qFuzzyIsNull(delta.valueDelta.y())) {
             const auto input = accelerated(delta.valueDelta.y(), verticalInput,
                                            lastVerticalDistance);
-            handled = vertical.scrollBy(input.first, input.second) || handled;
+            const bool moved = vertical.scrollBy(input.first, input.second);
+            if (moved && settings.wheelMomentumEnabled && !delta.usesPixelDelta) {
+                recordWheelInput(verticalMotion, vertical.scrollBar(), input.first,
+                                 std::abs(event->angleDelta().y()) / 120.0);
+            } else {
+                resetMotion(verticalMotion);
+            }
+            handled = moved || handled;
         }
 
         if (handled || settings.boundaryPolicy == BoundaryPolicy::Consume) {
@@ -146,6 +275,8 @@ public:
     QElapsedTimer verticalInput;
     qreal lastHorizontalDistance = 0.0;
     qreal lastVerticalDistance = 0.0;
+    WheelMotion horizontalMotion;
+    WheelMotion verticalMotion;
     bool enabled = true;
     bool running = false;
 };
@@ -210,6 +341,8 @@ void SmoothScrollController::scrollTo(const QPoint& position, int duration)
         return;
     }
     d->ensureScrollBars();
+    d->resetMotion(d->horizontalMotion);
+    d->resetMotion(d->verticalMotion);
     const bool horizontalStarted = d->horizontal.scrollTo(position.x(), duration);
     const bool verticalStarted = d->vertical.scrollTo(position.y(), duration);
     Q_UNUSED(horizontalStarted)
@@ -218,6 +351,8 @@ void SmoothScrollController::scrollTo(const QPoint& position, int duration)
 
 void SmoothScrollController::stop()
 {
+    d->resetMotion(d->horizontalMotion);
+    d->resetMotion(d->verticalMotion);
     d->horizontalInput.invalidate();
     d->verticalInput.invalidate();
     d->horizontal.stop();
@@ -253,4 +388,4 @@ bool SmoothScrollController::eventFilter(QObject* watched, QEvent* event)
     return QObject::eventFilter(watched, event);
 }
 
-} // namespace smoothscroll
+} // namespace sscroll

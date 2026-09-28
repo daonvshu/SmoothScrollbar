@@ -8,7 +8,7 @@
 class QScrollBar;
 class QWheelEvent;
 
-namespace smoothscroll {
+namespace sscroll {
 
 struct NormalizedWheelDelta {
     QPointF valueDelta;
@@ -28,7 +28,8 @@ public:
         int angleDelta,
         const QScrollBar& scrollBar,
         qreal distanceFactor,
-        int minimumWheelStep = 1);
+        int minimumWheelStep = 1,
+        int wheelStep = 0);
 };
 
-} // namespace smoothscroll
+} // namespace sscroll

@@ -12,7 +12,7 @@
 #include <QTest>
 #include <QWheelEvent>
 
-using namespace smoothscroll;
+using namespace sscroll;
 
 class SmoothScrollbarTest : public QObject {
     Q_OBJECT
@@ -22,6 +22,7 @@ private slots:
     void cleanupTestCase();
     void settingsAreNormalized();
     void angleDeltaUsesSystemStep();
+    void angleDeltaUsesConfiguredStep();
     void pixelDeltaDefaultsToNativeHandling();
     void shiftMovesVerticalDeltaToHorizontalAxis();
     void horizontalOnlyRangeUsesVerticalWheelInput();
@@ -103,6 +104,7 @@ void SmoothScrollbarTest::settingsAreNormalized()
     SmoothScrollSettings settings;
     settings.animationDuration = -10;
     settings.wheelDistanceFactor = -2.0;
+    settings.wheelStep = -5;
     settings.minimumWheelStep = 0;
     settings.maximumPendingDistance = -1;
     settings.wheelAccelerationStrength = 10.0;
@@ -110,6 +112,7 @@ void SmoothScrollbarTest::settingsAreNormalized()
     const auto result = settings.normalized();
     QCOMPARE(result.animationDuration, 0);
     QCOMPARE(result.wheelDistanceFactor, 0.0);
+    QCOMPARE(result.wheelStep, 0);
     QCOMPARE(result.minimumWheelStep, 1);
     QCOMPARE(result.maximumPendingDistance, 0);
     QCOMPARE(result.wheelAccelerationStrength, 3.0);
@@ -128,6 +131,25 @@ void SmoothScrollbarTest::angleDeltaUsesSystemStep()
     QCOMPARE(delta.valueDelta.y(),
              qreal(QApplication::wheelScrollLines() * 20));
     QVERIFY(!delta.shouldPreserveNativeHandling);
+}
+
+void SmoothScrollbarTest::angleDeltaUsesConfiguredStep()
+{
+    QScrollBar horizontal(Qt::Horizontal);
+    QScrollBar vertical(Qt::Vertical);
+    vertical.setSingleStep(100);
+    SmoothScrollSettings settings;
+    settings.wheelStep = 36;
+    const auto event = makeWheelEvent({}, QPoint(0, -120));
+
+    const auto delta = WheelDeltaNormalizer::normalize(
+        event, horizontal, vertical, settings);
+
+    QCOMPARE(delta.valueDelta.y(), 36.0);
+    const auto halfStepEvent = makeWheelEvent({}, QPoint(0, -60));
+    const auto halfStepDelta = WheelDeltaNormalizer::normalize(
+        halfStepEvent, horizontal, vertical, settings);
+    QCOMPARE(halfStepDelta.valueDelta.y(), 18.0);
 }
 
 void SmoothScrollbarTest::pixelDeltaDefaultsToNativeHandling()

@@ -4,7 +4,7 @@
 
 class QAbstractScrollArea;
 
-namespace smoothscroll {
+namespace sscroll {
 
 class QScrollerAdapter final {
 public:
@@ -19,5 +19,5 @@ private:
     bool m_ownsGesture = false;
 };
 
-} // namespace smoothscroll
+} // namespace sscroll
 

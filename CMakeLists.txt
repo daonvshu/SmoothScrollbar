@@ -17,15 +17,12 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 add_library(SmoothScrollbar
-    include/smoothscroll/smoothscrollbar.h
     include/smoothscroll/smoothscrollcontroller.h
     include/smoothscroll/smoothscrollsettings.h
-    include/smoothscrollbar.h
     src/qscrolleradapter_p.cpp
     src/qscrolleradapter_p.h
     src/scrollaxisanimator_p.cpp
     src/scrollaxisanimator_p.h
-    src/smoothscrollbar.cpp
     src/smoothscrollcontroller.cpp
     src/wheeldeltanormalizer_p.cpp
     src/wheeldeltanormalizer_p.h

@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace smoothscroll {
+namespace sscroll {
 
 NormalizedWheelDelta WheelDeltaNormalizer::normalize(
     const QWheelEvent& event,
@@ -47,11 +47,11 @@ NormalizedWheelDelta WheelDeltaNormalizer::normalize(
 
     result.valueDelta.setX(angleToValueDelta(
         angleDelta.x(), horizontalScrollBar, effective.wheelDistanceFactor,
-        effective.minimumWheelStep));
+        effective.minimumWheelStep, effective.wheelStep));
 
     result.valueDelta.setY(angleToValueDelta(
         angleDelta.y(), verticalScrollBar, effective.wheelDistanceFactor,
-        effective.minimumWheelStep));
+        effective.minimumWheelStep, effective.wheelStep));
     return result;
 }
 
@@ -59,15 +59,18 @@ qreal WheelDeltaNormalizer::angleToValueDelta(
     int angleDelta,
     const QScrollBar& scrollBar,
     qreal distanceFactor,
-    int minimumWheelStep)
+    int minimumWheelStep,
+    int wheelStep)
 {
     if (angleDelta == 0) {
         return 0.0;
     }
 
-    const int lines = std::max(1, QApplication::wheelScrollLines());
-    const int step = std::max(minimumWheelStep, scrollBar.singleStep());
-    return -(qreal(angleDelta) / 120.0) * lines * step * distanceFactor;
+    const int distance = wheelStep > 0
+        ? wheelStep
+        : std::max(1, QApplication::wheelScrollLines())
+            * std::max(minimumWheelStep, scrollBar.singleStep());
+    return -(qreal(angleDelta) / 120.0) * distance * distanceFactor;
 }
 
-} // namespace smoothscroll
+} // namespace sscroll

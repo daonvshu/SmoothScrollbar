@@ -9,7 +9,7 @@
 
 class QAbstractScrollArea;
 
-namespace smoothscroll {
+namespace sscroll {
 
 class SmoothScrollControllerPrivate;
 
@@ -42,5 +42,5 @@ private:
     QScopedPointer<SmoothScrollControllerPrivate> d;
 };
 
-} // namespace smoothscroll
+} // namespace sscroll
 

@@ -4,7 +4,7 @@
 #include <QScroller>
 #include <QWidget>
 
-namespace smoothscroll {
+namespace sscroll {
 
 QScrollerAdapter::QScrollerAdapter(QAbstractScrollArea* scrollArea)
     : m_scrollArea(scrollArea)
@@ -40,4 +40,4 @@ bool QScrollerAdapter::isEnabled() const noexcept
     return m_ownsGesture;
 }
 
-} // namespace smoothscroll
+} // namespace sscroll

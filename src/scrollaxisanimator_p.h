@@ -9,7 +9,7 @@
 
 class QScrollBar;
 
-namespace smoothscroll {
+namespace sscroll {
 
 class SMOOTHSCROLLBAR_EXPORT ScrollAxisAnimator final : public QObject {
     Q_OBJECT
@@ -20,7 +20,8 @@ public:
     void setScrollBar(QScrollBar* scrollBar);
     [[nodiscard]] QScrollBar* scrollBar() const noexcept;
     void setSettings(const SmoothScrollSettings& settings);
-    [[nodiscard]] bool scrollBy(qreal delta, qreal pendingDistanceMultiplier = 1.0);
+    [[nodiscard]] bool scrollBy(qreal delta, qreal pendingDistanceMultiplier = 1.0,
+                                int duration = -1);
     [[nodiscard]] bool scrollTo(qreal position, int duration = -1);
     [[nodiscard]] bool canScroll(qreal delta) const;
     [[nodiscard]] bool isRunning() const noexcept;
@@ -42,4 +43,4 @@ private:
     bool m_applyingValue = false;
 };
 
-} // namespace smoothscroll
+} // namespace sscroll

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace smoothscroll {
+namespace sscroll {
 
 ScrollAxisAnimator::ScrollAxisAnimator(QScrollBar* scrollBar, QObject* parent)
     : QObject(parent)
@@ -89,7 +89,8 @@ void ScrollAxisAnimator::setSettings(const SmoothScrollSettings& settings)
     m_animation.setEasingCurve(m_settings.easingCurve);
 }
 
-bool ScrollAxisAnimator::scrollBy(qreal delta, qreal pendingDistanceMultiplier)
+bool ScrollAxisAnimator::scrollBy(qreal delta, qreal pendingDistanceMultiplier,
+                                  int duration)
 {
     if (!m_scrollBar || qFuzzyIsNull(delta) || !canScroll(delta)) {
         return false;
@@ -112,7 +113,7 @@ bool ScrollAxisAnimator::scrollBy(qreal delta, qreal pendingDistanceMultiplier)
         m_targetPosition = bounded(m_targetPosition);
     }
 
-    startAnimation(m_settings.animationDuration);
+    startAnimation(duration >= 0 ? duration : m_settings.animationDuration);
     return true;
 }
 
@@ -206,4 +207,4 @@ void ScrollAxisAnimator::startAnimation(int duration)
     m_animation.start();
 }
 
-} // namespace smoothscroll
+} // namespace sscroll

@@ -88,22 +88,42 @@ int main(int argc, char* argv[])
     durationSpin->setSuffix(QStringLiteral(" ms"));
     durationSpin->setValue(300);
 
+    auto* wheelStepSpin = new QSpinBox(&window);
+    wheelStepSpin->setRange(1, 160);
+    wheelStepSpin->setSingleStep(4);
+    wheelStepSpin->setSuffix(QStringLiteral(" px"));
+    wheelStepSpin->setValue(36);
+
     controls->addWidget(new QLabel(QStringLiteral("Easing"), &window));
     controls->addWidget(easingCombo);
     controls->addSpacing(16);
     controls->addWidget(new QLabel(QStringLiteral("Duration"), &window));
     controls->addWidget(durationSpin);
+    controls->addSpacing(16);
+    controls->addWidget(new QLabel(QStringLiteral("Wheel step"), &window));
+    controls->addWidget(wheelStepSpin);
     controls->addStretch();
     layout->addLayout(controls);
 
     auto* speedControls = new QHBoxLayout;
-    auto* accelerationCheck = new QCheckBox(QStringLiteral("Speed-linked inertia"), &window);
-    accelerationCheck->setChecked(true);
+    auto* accelerationCheck = new QCheckBox(QStringLiteral("Accelerate wheel input"), &window);
+    accelerationCheck->setChecked(false);
+    auto* momentumCheck = new QCheckBox(QStringLiteral("Continue after wheel stops"), &window);
+    momentumCheck->setChecked(true);
+    auto* momentumStepsSpin = new QSpinBox(&window);
+    momentumStepsSpin->setRange(2, 12);
+    momentumStepsSpin->setValue(3);
+    momentumStepsSpin->setToolTip(QStringLiteral("Minimum wheel notches before momentum starts"));
     auto* strengthSpin = new QDoubleSpinBox(&window);
     strengthSpin->setRange(0.0, 3.0);
     strengthSpin->setSingleStep(0.1);
     strengthSpin->setDecimals(1);
     strengthSpin->setValue(1.5);
+    strengthSpin->setEnabled(false);
+    speedControls->addWidget(momentumCheck);
+    speedControls->addWidget(new QLabel(QStringLiteral("Min notches"), &window));
+    speedControls->addWidget(momentumStepsSpin);
+    speedControls->addSpacing(16);
     speedControls->addWidget(accelerationCheck);
     speedControls->addWidget(new QLabel(QStringLiteral("Strength"), &window));
     speedControls->addWidget(strengthSpin);
@@ -117,11 +137,12 @@ int main(int argc, char* argv[])
     table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     layout->addWidget(table);
 
-    auto* controller = new smoothscroll::SmoothScrollController(table, table);
-    smoothscroll::SmoothScrollSettings settings;
+    auto* controller = new sscroll::SmoothScrollController(table, table);
+    sscroll::SmoothScrollSettings settings;
     settings.animationDuration = 300;
     settings.maximumPendingDistance = 360;
-    settings.wheelAccelerationEnabled = true;
+    settings.wheelStep = wheelStepSpin->value();
+    settings.wheelMomentumMinimumSteps = momentumStepsSpin->value();
     controller->setSettings(settings);
 
     QObject::connect(easingCombo,
@@ -139,12 +160,32 @@ int main(int argc, char* argv[])
         updatedSettings.animationDuration = duration;
         controller->setSettings(updatedSettings);
     });
+    QObject::connect(wheelStepSpin,
+                     QOverload<int>::of(&QSpinBox::valueChanged),
+                     controller, [=](int step) {
+        auto updatedSettings = controller->settings();
+        updatedSettings.wheelStep = step;
+        controller->setSettings(updatedSettings);
+    });
 
     QObject::connect(accelerationCheck, &QCheckBox::toggled, controller, [=](bool enabled) {
         auto updatedSettings = controller->settings();
         updatedSettings.wheelAccelerationEnabled = enabled;
         controller->setSettings(updatedSettings);
         strengthSpin->setEnabled(enabled);
+    });
+    QObject::connect(momentumCheck, &QCheckBox::toggled, controller, [=](bool enabled) {
+        auto updatedSettings = controller->settings();
+        updatedSettings.wheelMomentumEnabled = enabled;
+        controller->setSettings(updatedSettings);
+        momentumStepsSpin->setEnabled(enabled);
+    });
+    QObject::connect(momentumStepsSpin,
+                     QOverload<int>::of(&QSpinBox::valueChanged),
+                     controller, [=](int steps) {
+        auto updatedSettings = controller->settings();
+        updatedSettings.wheelMomentumMinimumSteps = steps;
+        controller->setSettings(updatedSettings);
     });
     QObject::connect(strengthSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
                      controller, [=](double strength) {
