@@ -3,6 +3,7 @@
 #include <QPointer>
 
 class QAbstractScrollArea;
+class QWidget;
 
 namespace sscroll {
 
@@ -16,6 +17,7 @@ public:
 
 private:
     QPointer<QAbstractScrollArea> m_scrollArea;
+    QPointer<QWidget> m_viewport;
     bool m_ownsGesture = false;
 };
 
