@@ -45,6 +45,7 @@ public:
                                   QAbstractScrollArea* area)
         : q(owner)
         , scrollArea(area)
+        , viewport(area ? area->viewport() : nullptr)
         , horizontal(area ? area->horizontalScrollBar() : nullptr, owner)
         , vertical(area ? area->verticalScrollBar() : nullptr, owner)
         , scroller(area)
@@ -157,11 +158,16 @@ public:
 
     void prioritizeViewportFilter()
     {
-        if (!scrollArea || !scrollArea->viewport()) {
+        if (!scrollArea) {
             return;
         }
-        scrollArea->viewport()->removeEventFilter(q);
-        scrollArea->viewport()->installEventFilter(q);
+        if (viewport) {
+            viewport->removeEventFilter(q);
+        }
+        viewport = scrollArea->viewport();
+        if (viewport) {
+            viewport->installEventFilter(q);
+        }
     }
 
     void ensureScrollBars()
@@ -267,6 +273,7 @@ public:
 
     SmoothScrollController* q;
     QPointer<QAbstractScrollArea> scrollArea;
+    QPointer<QWidget> viewport;
     ScrollAxisAnimator horizontal;
     ScrollAxisAnimator vertical;
     QScrollerAdapter scroller;
@@ -279,6 +286,7 @@ public:
     WheelMotion verticalMotion;
     bool enabled = true;
     bool running = false;
+    bool shuttingDown = false;
 };
 
 SmoothScrollController::SmoothScrollController(QAbstractScrollArea* scrollArea,
@@ -299,7 +307,32 @@ SmoothScrollController::SmoothScrollController(QAbstractScrollArea* scrollArea,
     d->applySettings({});
 }
 
-SmoothScrollController::~SmoothScrollController() = default;
+SmoothScrollController::~SmoothScrollController()
+{
+    d->shuttingDown = true;
+    // QObject disconnects too late: callbacks must not observe partially destroyed private data.
+    disconnect(&d->horizontal, nullptr, this, nullptr);
+    disconnect(&d->vertical, nullptr, this, nullptr);
+    disconnect(&d->horizontalMotion.idleTimer, nullptr, this, nullptr);
+    disconnect(&d->verticalMotion.idleTimer, nullptr, this, nullptr);
+
+    if (d->scrollArea) {
+        d->scrollArea->removeEventFilter(this);
+    }
+    if (d->viewport) {
+        d->viewport->removeEventFilter(this);
+    }
+    if (d->horizontal.scrollBar()) {
+        d->horizontal.scrollBar()->removeEventFilter(this);
+    }
+    if (d->vertical.scrollBar()) {
+        d->vertical.scrollBar()->removeEventFilter(this);
+    }
+    stop();
+    d->horizontal.setScrollBar(nullptr);
+    d->vertical.setScrollBar(nullptr);
+    d->scroller.setEnabled(false);
+}
 
 QAbstractScrollArea* SmoothScrollController::scrollArea() const noexcept
 {
@@ -361,14 +394,15 @@ void SmoothScrollController::stop()
 
 bool SmoothScrollController::eventFilter(QObject* watched, QEvent* event)
 {
-    if (!d->scrollArea) {
+    if (d->shuttingDown || !d->scrollArea) {
         return QObject::eventFilter(watched, event);
     }
-    d->ensureScrollBars();
+    // Scroll-area internals may already be gone during child destruction events.
+    // Rebind scrollbars only when processing live input or an explicit scroll request.
     switch (event->type()) {
     case QEvent::Wheel:
         if (watched != d->scrollArea
-            && watched != d->scrollArea->viewport()
+            && watched != d->viewport
             && watched != d->horizontal.scrollBar()
             && watched != d->vertical.scrollBar()) {
             return false;

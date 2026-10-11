@@ -18,20 +18,25 @@ QScrollerAdapter::~QScrollerAdapter()
 
 void QScrollerAdapter::setEnabled(bool enabled)
 {
-    if (!m_scrollArea || !m_scrollArea->viewport()) {
+    if (!enabled) {
+        if (m_ownsGesture && m_viewport) {
+            QScroller::ungrabGesture(m_viewport);
+        }
         m_ownsGesture = false;
+        m_viewport = nullptr;
         return;
     }
 
-    QObject* viewport = m_scrollArea->viewport();
-    if (enabled && !m_ownsGesture) {
-        if (QScroller::grabbedGesture(viewport) == Qt::GestureType(0)) {
-            QScroller::grabGesture(viewport, QScroller::TouchGesture);
+    QWidget* viewport = m_scrollArea ? m_scrollArea->viewport() : nullptr;
+    if (m_viewport != viewport) {
+        setEnabled(false);
+        m_viewport = viewport;
+    }
+    if (m_viewport && !m_ownsGesture) {
+        if (QScroller::grabbedGesture(m_viewport) == Qt::GestureType(0)) {
+            QScroller::grabGesture(m_viewport, QScroller::TouchGesture);
             m_ownsGesture = true;
         }
-    } else if (!enabled && m_ownsGesture) {
-        QScroller::ungrabGesture(viewport);
-        m_ownsGesture = false;
     }
 }
 
