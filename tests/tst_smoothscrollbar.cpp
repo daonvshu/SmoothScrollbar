@@ -27,6 +27,10 @@ private slots:
     void shiftMovesVerticalDeltaToHorizontalAxis();
     void horizontalOnlyRangeUsesVerticalWheelInput();
     void animatorAccumulatesAndClamps();
+    void animatorRestartsWithoutPublishingStaleValues_data();
+    void animatorRestartsWithoutPublishingStaleValues();
+    void controllerMomentumAndIdleRestartStayMonotonic_data();
+    void controllerMomentumAndIdleRestartStayMonotonic();
     void animatorExpandsPendingLimitForAcceleration();
     void animatorReversesFromCurrentPosition();
     void animatorResynchronizesAfterExternalChange();
@@ -432,6 +436,112 @@ void SmoothScrollbarTest::controllerKeepsWheelFilterPriority()
     QCOMPARE(competingFilter.wheelEventCount, 0);
     QCOMPARE(scrollingSpy.count(), 1);
     QTRY_VERIFY_WITH_TIMEOUT(area.verticalScrollBar()->value() > 0, 250);
+}
+
+void SmoothScrollbarTest::animatorRestartsWithoutPublishingStaleValues_data()
+{
+    QTest::addColumn<int>("orientation");
+    QTest::addColumn<int>("direction");
+    QTest::newRow("vertical-down") << int(Qt::Vertical) << 1;
+    QTest::newRow("vertical-up") << int(Qt::Vertical) << -1;
+    QTest::newRow("horizontal-forward") << int(Qt::Horizontal) << 1;
+    QTest::newRow("horizontal-backward") << int(Qt::Horizontal) << -1;
+}
+
+void SmoothScrollbarTest::animatorRestartsWithoutPublishingStaleValues()
+{
+    QFETCH(int, orientation);
+    QFETCH(int, direction);
+    QScrollBar bar(static_cast<Qt::Orientation>(orientation));
+    bar.setRange(0, 2000);
+    bar.setValue(1000);
+    ScrollAxisAnimator animator(&bar);
+    int previous = bar.value();
+    bool reversed = false;
+    connect(&bar, &QScrollBar::valueChanged, &animator, [&](int value) {
+        reversed |= direction * (value - previous) < 0;
+        previous = value;
+    });
+    QVERIFY(animator.scrollBy(direction * 200, 1.0, 300));
+    QTest::qWait(60);
+    QVERIFY(direction * (bar.value() - 1000) > 0);
+    const int current = bar.value();
+    QSignalSpy values(&bar, &QScrollBar::valueChanged);
+    QVERIFY(animator.scrollBy(direction * 200, 2.0, 600));
+    QCOMPARE(bar.value(), current);
+    QCOMPARE(values.count(), 0);
+    QTRY_VERIFY_WITH_TIMEOUT(!animator.isRunning(), 1000);
+    QCOMPARE(bar.value(), 1000 + direction * 400);
+    QVERIFY(!reversed);
+
+    QTest::qWait(30);
+    const int stopped = bar.value();
+    values.clear();
+    QVERIFY(animator.scrollBy(direction * 20, 1.0, 150));
+    QCOMPARE(bar.value(), stopped);
+    QCOMPARE(values.count(), 0);
+    QTRY_VERIFY_WITH_TIMEOUT(!animator.isRunning(), 500);
+    QCOMPARE(bar.value(), stopped + direction * 20);
+    QVERIFY(!reversed);
+}
+
+void SmoothScrollbarTest::controllerMomentumAndIdleRestartStayMonotonic_data()
+{
+    QTest::addColumn<int>("direction");
+    QTest::newRow("down") << 1;
+    QTest::newRow("up") << -1;
+}
+
+void SmoothScrollbarTest::controllerMomentumAndIdleRestartStayMonotonic()
+{
+    QFETCH(int, direction);
+    QScrollArea area;
+    auto* content = new QWidget;
+    content->resize(400, 10000);
+    area.setWidget(content);
+    area.resize(300, 300);
+    area.show();
+    QTest::qWait(20);
+    QScrollBar* bar = area.verticalScrollBar();
+    bar->setValue(3000);
+    SmoothScrollController controller(&area);
+    SmoothScrollSettings settings;
+    settings.wheelStep = 48;
+    controller.setSettings(settings);
+    QVERIFY(controller.settings().wheelMomentumEnabled);
+    int previous = bar->value();
+    bool reversed = false;
+    connect(bar, &QScrollBar::valueChanged, &controller, [&](int value) {
+        reversed |= direction * (value - previous) < 0;
+        previous = value;
+    });
+    QSignalSpy values(bar, &QScrollBar::valueChanged);
+    QSignalSpy motion(&controller, &SmoothScrollController::scrollingChanged);
+    const auto wheel = [&]() {
+        auto event = makeWheelEvent({}, QPoint(0, -direction * 120));
+        QApplication::sendEvent(area.viewport(), &event);
+    };
+    for (int input = 0; input < 6; ++input) {
+        const int before = bar->value();
+        const int signalCount = values.count();
+        wheel();
+        QCOMPARE(bar->value(), before);
+        QCOMPARE(values.count(), signalCount);
+        QTest::qWait(20);
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(!motion.isEmpty() && !motion.last().at(0).toBool(), 1800);
+    QVERIFY(direction * (bar->value() - 3000) > 6 * settings.wheelStep);
+    QVERIFY(!reversed);
+    QTest::qWait(100);
+    const int stopped = bar->value();
+    values.clear();
+    motion.clear();
+    wheel();
+    QCOMPARE(bar->value(), stopped);
+    QCOMPARE(values.count(), 0);
+    QTRY_VERIFY_WITH_TIMEOUT(!motion.isEmpty() && !motion.last().at(0).toBool(), 700);
+    QCOMPARE(bar->value(), stopped + direction * settings.wheelStep);
+    QVERIFY(!reversed);
 }
 
 QTEST_MAIN(SmoothScrollbarTest)

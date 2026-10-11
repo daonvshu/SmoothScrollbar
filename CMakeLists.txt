@@ -13,7 +13,9 @@ include(GenerateExportHeader)
 option(SMOOTHSCROLLBAR_BUILD_EXAMPLES "Build the widgets example" ON)
 option(SMOOTHSCROLLBAR_BUILD_TESTS "Build the test suite" ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+if(NOT DEFINED QT_VERSION_MAJOR)
+    find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+endif()
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 add_library(SmoothScrollbar
