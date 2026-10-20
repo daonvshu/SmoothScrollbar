@@ -1,6 +1,7 @@
 #include "scrollaxisanimator_p.h"
 
 #include <QScrollBar>
+#include <QSignalBlocker>
 
 #include <algorithm>
 #include <cmath>
@@ -183,6 +184,7 @@ void ScrollAxisAnimator::startAnimation(int duration)
         return;
     }
 
+    const qreal currentPosition = m_scrollBar->value();
     m_animation.stop();
     if (duration <= 0) {
         m_applyingValue = true;
@@ -195,10 +197,16 @@ void ScrollAxisAnimator::startAnimation(int duration)
         return;
     }
 
-    m_animation.setDuration(duration);
-    m_animation.setEasingCurve(m_settings.easingCurve);
-    m_animation.setStartValue(qreal(m_scrollBar->value()));
-    m_animation.setEndValue(m_targetPosition);
+    {
+        // Stopped animations retain their time; setters must not publish values
+        // evaluated against the previous timeline while a restart is configured.
+        const QSignalBlocker blocker(&m_animation);
+        m_animation.setDuration(duration);
+        m_animation.setEasingCurve(m_settings.easingCurve);
+        m_animation.setStartValue(currentPosition);
+        m_animation.setEndValue(m_targetPosition);
+        m_animation.setCurrentTime(0);
+    }
     if (!m_running) {
         m_running = true;
         emit runningChanged(true);
