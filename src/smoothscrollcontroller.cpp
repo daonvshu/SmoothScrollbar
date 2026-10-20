@@ -82,16 +82,16 @@ public:
                 }
 
                 const qreal speed = std::abs(velocity);
-                const qreal speedRatio = std::clamp(
+                const qreal speedRatio = qBound<qreal>(0.0,
                     (speed - minimumMomentumSpeed)
                         / (maximumMomentumSpeed - minimumMomentumSpeed),
-                    0.0, 1.0);
-                const qreal stepRatio = std::clamp(
+                    1.0);
+                const qreal stepRatio = qBound<qreal>(0.0,
                     (wheelSteps - settings.wheelMomentumMinimumSteps + 1.0)
                         / (momentumRampSteps + 1.0),
-                    0.0, 1.0);
-                const qreal baseDuration = std::clamp<qreal>(
-                    settings.animationDuration * 1.3, 150.0, maximumMomentumDurationMs);
+                    1.0);
+                const qreal baseDuration = qBound<qreal>(
+                    150.0, settings.animationDuration * 1.3, maximumMomentumDurationMs);
                 const int duration = qRound(baseDuration
                     + (maximumMomentumDurationMs - baseDuration) * speedRatio * stepRatio);
                 const qreal pendingLimit = settings.maximumPendingDistance > 0
@@ -100,8 +100,9 @@ public:
                     std::min(speed * duration / 3000.0,
                              pendingLimit * (1.0 + speedRatio)) * stepRatio,
                     velocity);
-                static_cast<void>(axisAnimator->scrollBy(
-                    distance, pendingMomentumMultiplier, duration));
+                const bool momentumStarted = axisAnimator->scrollBy(
+                    distance, pendingMomentumMultiplier, duration);
+                Q_UNUSED(momentumStarted)
             });
         };
         setupMomentum(horizontalMotion, horizontal);

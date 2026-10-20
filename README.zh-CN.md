@@ -10,9 +10,9 @@ SmoothScrollbar 是一个轻量、无额外依赖的 Qt Widgets 库，为 `QAbst
 
 ## 环境要求
 
-- C++17
+- Qt 5 使用 C++11；Qt 6 使用 C++17
 - Qt 5.15.2 或 Qt 6.5 及更新版本
-- CMake 3.21 或更新版本
+- Qt 5 使用 CMake 3.12 或更新版本；Qt 6 使用 CMake 3.16 或更新版本
 
 ## 使用方法
 

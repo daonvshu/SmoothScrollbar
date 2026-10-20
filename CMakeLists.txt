@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.12...3.16)
 
 project(SmoothScrollbar
     VERSION 1.0.0
@@ -13,8 +13,13 @@ include(GenerateExportHeader)
 option(SMOOTHSCROLLBAR_BUILD_EXAMPLES "Build the widgets example" ON)
 option(SMOOTHSCROLLBAR_BUILD_TESTS "Build the test suite" ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+if(CMAKE_VERSION VERSION_LESS 3.16)
+    find_package(Qt5 REQUIRED COMPONENTS Widgets)
+    set(QT_VERSION_MAJOR 5)
+else()
+    find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+    find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+endif()
 
 add_library(SmoothScrollbar
     include/smoothscroll/smoothscrollcontroller.h
@@ -35,7 +40,7 @@ set_target_properties(SmoothScrollbar PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
-target_compile_features(SmoothScrollbar PUBLIC cxx_std_17)
+target_compile_features(SmoothScrollbar PUBLIC cxx_std_11)
 target_link_libraries(SmoothScrollbar PUBLIC Qt${QT_VERSION_MAJOR}::Widgets)
 target_include_directories(SmoothScrollbar
     PUBLIC

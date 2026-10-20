@@ -18,13 +18,13 @@ struct NormalizedWheelDelta {
 
 class SMOOTHSCROLLBAR_EXPORT WheelDeltaNormalizer final {
 public:
-    [[nodiscard]] static NormalizedWheelDelta normalize(
+    Q_REQUIRED_RESULT static NormalizedWheelDelta normalize(
         const QWheelEvent& event,
         const QScrollBar& horizontalScrollBar,
         const QScrollBar& verticalScrollBar,
         const SmoothScrollSettings& settings);
 
-    [[nodiscard]] static qreal angleToValueDelta(
+    Q_REQUIRED_RESULT static qreal angleToValueDelta(
         int angleDelta,
         const QScrollBar& scrollBar,
         qreal distanceFactor,

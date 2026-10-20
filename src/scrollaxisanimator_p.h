@@ -18,21 +18,21 @@ public:
     explicit ScrollAxisAnimator(QScrollBar* scrollBar, QObject* parent = nullptr);
 
     void setScrollBar(QScrollBar* scrollBar);
-    [[nodiscard]] QScrollBar* scrollBar() const noexcept;
+    Q_REQUIRED_RESULT QScrollBar* scrollBar() const noexcept;
     void setSettings(const SmoothScrollSettings& settings);
-    [[nodiscard]] bool scrollBy(qreal delta, qreal pendingDistanceMultiplier = 1.0,
+    Q_REQUIRED_RESULT bool scrollBy(qreal delta, qreal pendingDistanceMultiplier = 1.0,
                                 int duration = -1);
-    [[nodiscard]] bool scrollTo(qreal position, int duration = -1);
-    [[nodiscard]] bool canScroll(qreal delta) const;
-    [[nodiscard]] bool isRunning() const noexcept;
-    [[nodiscard]] qreal targetPosition() const noexcept;
+    Q_REQUIRED_RESULT bool scrollTo(qreal position, int duration = -1);
+    Q_REQUIRED_RESULT bool canScroll(qreal delta) const;
+    Q_REQUIRED_RESULT bool isRunning() const noexcept;
+    Q_REQUIRED_RESULT qreal targetPosition() const noexcept;
     void stop();
 
 signals:
     void runningChanged(bool running);
 
 private:
-    [[nodiscard]] qreal bounded(qreal position) const;
+    Q_REQUIRED_RESULT qreal bounded(qreal position) const;
     void startAnimation(int duration);
 
     QPointer<QScrollBar> m_scrollBar;

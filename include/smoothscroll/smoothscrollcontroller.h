@@ -21,11 +21,11 @@ public:
                                     QObject* parent = nullptr);
     ~SmoothScrollController() override;
 
-    [[nodiscard]] QAbstractScrollArea* scrollArea() const noexcept;
-    [[nodiscard]] SmoothScrollSettings settings() const;
+    Q_REQUIRED_RESULT QAbstractScrollArea* scrollArea() const noexcept;
+    Q_REQUIRED_RESULT SmoothScrollSettings settings() const;
     void setSettings(const SmoothScrollSettings& settings);
 
-    [[nodiscard]] bool isEnabled() const noexcept;
+    Q_REQUIRED_RESULT bool isEnabled() const noexcept;
     void setEnabled(bool enabled);
 
     void scrollTo(const QPoint& position, int duration = -1);

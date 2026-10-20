@@ -32,7 +32,7 @@ struct SmoothScrollSettings {
     bool wheelMomentumEnabled = true;
     int wheelMomentumMinimumSteps = 3;
 
-    [[nodiscard]] SmoothScrollSettings normalized() const
+    Q_REQUIRED_RESULT SmoothScrollSettings normalized() const
     {
         SmoothScrollSettings result = *this;
         result.animationDuration = qMax(0, result.animationDuration);

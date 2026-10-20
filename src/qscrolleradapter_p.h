@@ -13,7 +13,7 @@ public:
     ~QScrollerAdapter();
 
     void setEnabled(bool enabled);
-    [[nodiscard]] bool isEnabled() const noexcept;
+    Q_REQUIRED_RESULT bool isEnabled() const noexcept;
 
 private:
     QPointer<QAbstractScrollArea> m_scrollArea;

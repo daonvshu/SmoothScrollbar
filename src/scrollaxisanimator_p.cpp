@@ -109,7 +109,7 @@ bool ScrollAxisAnimator::scrollBy(qreal delta, qreal pendingDistanceMultiplier,
     if (m_settings.maximumPendingDistance > 0) {
         const qreal limit = m_settings.maximumPendingDistance
             * qMax<qreal>(1.0, pendingDistanceMultiplier);
-        m_targetPosition = std::clamp(m_targetPosition, current - limit, current + limit);
+        m_targetPosition = qBound<qreal>(current - limit, m_targetPosition, current + limit);
         m_targetPosition = bounded(m_targetPosition);
     }
 
@@ -173,9 +173,8 @@ qreal ScrollAxisAnimator::bounded(qreal position) const
     if (!m_scrollBar) {
         return position;
     }
-    return std::clamp(position,
-                      qreal(m_scrollBar->minimum()),
-                      qreal(m_scrollBar->maximum()));
+    return qBound<qreal>(qreal(m_scrollBar->minimum()), position,
+                         qreal(m_scrollBar->maximum()));
 }
 
 void ScrollAxisAnimator::startAnimation(int duration)

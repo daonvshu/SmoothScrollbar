@@ -11,9 +11,9 @@ Qt's `QScroller` instead of implementing a second physics engine.
 
 ## Requirements
 
-- C++17
+- C++11 with Qt 5; C++17 with Qt 6
 - Qt 5.15.2 or Qt 6.5 and newer
-- CMake 3.21 or newer
+- CMake 3.12 or newer with Qt 5; CMake 3.16 or newer with Qt 6
 
 ## Usage
 
