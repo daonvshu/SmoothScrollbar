@@ -10,8 +10,8 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(GenerateExportHeader)
 
-option(SMOOTHSCROLLBAR_BUILD_EXAMPLES "Build the widgets example" ON)
-option(SMOOTHSCROLLBAR_BUILD_TESTS "Build the test suite" ON)
+option(SMOOTHSCROLLBAR_BUILD_EXAMPLES "Build the widgets example" OFF)
+option(SMOOTHSCROLLBAR_BUILD_TESTS "Build the test suite" OFF)
 
 if(CMAKE_VERSION VERSION_LESS 3.16)
     find_package(Qt5 REQUIRED COMPONENTS Widgets)
